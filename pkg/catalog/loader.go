@@ -128,6 +128,10 @@ type TemplateData struct {
 	// Templates use: {{- if eq .RDMADeviceAccess "hostPath" }}
 	RDMADeviceAccess string
 
+	// IMEXMode is "host" or empty (see BuildConfig.IMEXMode).
+	// Templates use: {{ if eq .IMEXMode "host" }} ... {{ end }}
+	IMEXMode string
+
 	// HasNetworkAttachments is true when the options list networkAttachments
 	// explicitly. Fragments that render a default NIC wiring the list
 	// replaces wrap it in {{- if not .HasNetworkAttachments }}.
@@ -501,6 +505,7 @@ func buildTemplateData(config BuildConfig, configArch, variant string, meta entr
 		MlnxPerNode:                config.MlnxPerNode,
 		NicResourceName:            config.NicResourceName,
 		RDMADeviceAccess:           config.RDMADeviceAccess,
+		IMEXMode:                   config.IMEXMode,
 		HasNetworkAttachments:      len(config.NetworkAttachments) > 0,
 		GKETCPXONetworks:           config.GKETCPXONetworks,
 		EnableMNNVL:                config.EnableMNNVL,

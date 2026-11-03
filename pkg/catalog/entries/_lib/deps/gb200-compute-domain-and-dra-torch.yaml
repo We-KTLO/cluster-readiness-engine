@@ -1,6 +1,28 @@
 # SPDX-FileCopyrightText: Copyright (c) 2026 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
-
+# Host-managed IMEX (IMEXMode "host": every target node labelled nvcre.nvidia.com/imex-mode=host):
+# the IMEX channel comes from the host's own IMEX service through a CDI spec (nvidia runtime class), so no ComputeDomain
+# is created and the host service is never masked. Otherwise the DRA ComputeDomain path below.
+{{- if eq .IMEXMode "host" }}
+- apiVersion: trainer.kubeflow.org/v1alpha1
+  kind: TrainingRuntime
+  metadata:
+    name: {{ .EntryName }}-runtime
+  spec:
+    template:
+      spec:
+        replicatedJobs:
+        - name: node
+          template:
+            spec:
+              template:
+                metadata:
+                  annotations:
+                    cdi.k8s.io/imex: nvidia.com/imex-channel=all
+                spec:
+                  # The CDI annotation is honoured by the nvidia runtime handler only.
+                  runtimeClassName: nvidia
+{{- else }}
 - apiVersion: resource.nvidia.com/v1beta1
   kind: ComputeDomain
   metadata:
@@ -34,3 +56,4 @@
                     resources:
                       claims:
                       - name: compute-domain
+{{- end }}

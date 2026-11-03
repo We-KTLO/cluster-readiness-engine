@@ -218,7 +218,11 @@ func runCertificationRender(certFile, outputFormat string, dryRun bool,
 		tcpxoPluginVersion = detectTCPXOPluginVersion(ctx, dryRunClient, dryRunNodes, platformFlag)
 	}
 
-	workflows, err := renderCertification(cert, platformFlag, gpuArchOverride, gkeTCPXONetworks, tcpxoPluginVersion)
+	// Host-managed IMEX is a property of the discovered nodes, so only --dry-run
+	// can select it; offline render has no nodes and keeps the ComputeDomain path.
+	workflows, err := renderCertificationWithIMEX(
+		cert, platformFlag, gpuArchOverride, gkeTCPXONetworks, tcpxoPluginVersion,
+		platform.DetectIMEXMode(dryRunNodes))
 	if err != nil {
 		return err
 	}
@@ -509,6 +513,16 @@ func renderCertification(
 	cert *nvcrev1alpha1.Certification, platformName, gpuArchOverride string, gkeTCPXONetworks []string,
 	tcpxoPluginVersion string,
 ) ([]nvcrev1alpha1.Workflow, error) {
+	return renderCertificationWithIMEX(cert, platformName, gpuArchOverride, gkeTCPXONetworks, tcpxoPluginVersion, "")
+}
+
+// renderCertificationWithIMEX is renderCertification with the IMEX mode the
+// target nodes report (platform.DetectIMEXMode): "host" renders the host IMEX
+// channel through CDI instead of a ComputeDomain on GB200/GB300.
+func renderCertificationWithIMEX(
+	cert *nvcrev1alpha1.Certification, platformName, gpuArchOverride string, gkeTCPXONetworks []string,
+	tcpxoPluginVersion, imexMode string,
+) ([]nvcrev1alpha1.Workflow, error) {
 	if len(cert.Spec.Categories) == 0 {
 		return nil, fmt.Errorf("certification has no categories")
 	}
@@ -587,6 +601,7 @@ func renderCertification(
 			MlnxPerNode:                mlnxPerNode,
 			NicResourceName:            nicResourceName,
 			RDMADeviceAccess:           opts.RDMADeviceAccess,
+			IMEXMode:                   imexMode,
 			NetworkAttachments:         opts.NetworkAttachments,
 			GKETCPXONetworks:           gkeTCPXONetworks,
 			TCPXOPluginVersion:         tcpxoPluginVersion,

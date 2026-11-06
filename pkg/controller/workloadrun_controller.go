@@ -597,6 +597,7 @@ func (r *WorkloadRunReconciler) buildWorkflowSpecWithWarning(
 		GpusPerNode:     gpusPerNode,
 		MlnxPerNode:     mlnxPerNode,
 		NicResourceName: nicResourceName,
+		IMEXMode:        platform.DetectIMEXMode(nodes),
 		EnableMNNVL:     enableMNNVL,
 		FrameworkType:   frameworkType,
 		UserEnv:         spec.Env,

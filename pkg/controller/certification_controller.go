@@ -803,6 +803,7 @@ func (r *CertificationReconciler) prepareCategoryBuild(
 		MlnxPerNode:                mlnxPerNode,
 		NicResourceName:            nicResourceName,
 		RDMADeviceAccess:           opts.RDMADeviceAccess,
+		IMEXMode:                   platform.DetectIMEXMode(archNodes),
 		NetworkAttachments:         opts.NetworkAttachments,
 		GKETCPXONetworks:           gkeNetworks.Names,
 		TCPXOPluginVersion:         tcpxoPlugin.Version,

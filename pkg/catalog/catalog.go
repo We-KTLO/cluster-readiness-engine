@@ -64,6 +64,13 @@ type BuildConfig struct {
 	// {{- if eq .RDMADeviceAccess "hostPath" }}.
 	RDMADeviceAccess string
 
+	// IMEXMode is "host" when every target node already exposes the IMEX channel
+	// through the host's own IMEX service (label nvcre.nvidia.com/imex-mode=host,
+	// see platform.DetectIMEXMode); empty otherwise. In host mode the GB200/GB300
+	// templates inject the host channel through CDI instead of creating a
+	// ComputeDomain, so the host IMEX service is never masked.
+	IMEXMode string
+
 	// NetworkAttachments is the resolved networkAttachments list (issue
 	// #400). Build only uses it to suppress the catalog's own NIC wiring
 	// that an explicit list replaces (the OCI RDMA attachments); the

@@ -45,6 +45,9 @@ type OverrideConfig struct {
 	// the NIC resource block. The per-container count comes from MlnxPerNode.
 	NicResourceName string
 
+	// IMEXMode is "host" or empty (see DetectIMEXMode).
+	IMEXMode string `json:"IMEXMode,omitempty"`
+
 	EnableMNNVL   bool
 	FrameworkType string
 

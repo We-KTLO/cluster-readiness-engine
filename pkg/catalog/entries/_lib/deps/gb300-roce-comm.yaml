@@ -29,13 +29,17 @@
               template:
                 spec:
                   resourceClaims:
+{{- if ne .IMEXMode "host" }}
                   - name: compute-domain-channel
                     resourceClaimTemplateName: {{ .EntryName }}-channel
+{{- end }}
                   - name: roce-channel
                     resourceClaimTemplateName: {{ .EntryName }}-roce
                   containers:
                   - name: node
                     resources:
                       claims:
+{{- if ne .IMEXMode "host" }}
                       - name: compute-domain-channel
+{{- end }}
                       - name: roce-channel

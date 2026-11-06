@@ -311,8 +311,12 @@ func renderDryRun(
 	if platformFlag != "" {
 		renderPlatform = platformFlag
 	}
+	// Host-managed IMEX is a property of the target nodes, so only --dry-run
+	// can select it; offline render has no nodes and keeps the ComputeDomain
+	// path, as an unlabelled node set does.
 	return renderResolvedDetectingOCINetwork(
 		cert, renderPlatform, gpuArchOverride, gkeTCPXONetworks, tcpxoPluginVersion,
+		platform.DetectIMEXMode(nodes),
 		func(workflows []nvcrev1alpha1.Workflow) error {
 			for i := range workflows {
 				// --platform wins over node-based detection for override matching
@@ -350,7 +354,7 @@ func renderDryRun(
 func renderOffline(
 	cert *nvcrev1alpha1.Certification, platformFlag, gpuArchOverride string, stderr io.Writer,
 ) ([]nvcrev1alpha1.Workflow, error) {
-	return renderResolvedDetectingOCINetwork(cert, platformFlag, gpuArchOverride, nil, "",
+	return renderResolvedDetectingOCINetwork(cert, platformFlag, gpuArchOverride, nil, "", "",
 		func(workflows []nvcrev1alpha1.Workflow) error {
 			return resolveWorkflowsOffline(cert, workflows, platformFlag, gpuArchOverride)
 		},
@@ -558,13 +562,15 @@ func detectTCPXOPluginVersion(ctx context.Context, reader client.Reader, nodes [
 // first, and when a resolved Workflow still carries it, renders and resolves
 // again with the name detect returns: the detected network under --dry-run,
 // catalog.DefaultOCISecondaryNetwork offline (ADR-103). Detection does not
-// depend on the category, so one lookup serves them all.
+// depend on the category, so one lookup serves them all. imexMode is the
+// mode platform.DetectIMEXMode reports for the target nodes, "" offline.
 func renderResolvedDetectingOCINetwork(
 	cert *nvcrev1alpha1.Certification, platformName, gpuArchOverride string, gkeTCPXONetworks []string,
-	tcpxoPluginVersion string, resolve func([]nvcrev1alpha1.Workflow) error, detect func() (string, error),
+	tcpxoPluginVersion, imexMode string, resolve func([]nvcrev1alpha1.Workflow) error, detect func() (string, error),
 ) ([]nvcrev1alpha1.Workflow, error) {
 	workflows, err := renderCertification(
-		cert, platformName, gpuArchOverride, gkeTCPXONetworks, tcpxoPluginVersion, catalog.OCISecondaryNetworkUnresolved)
+		cert, platformName, gpuArchOverride, gkeTCPXONetworks, tcpxoPluginVersion, catalog.OCISecondaryNetworkUnresolved,
+		imexMode)
 	if err != nil {
 		return nil, err
 	}
@@ -581,7 +587,7 @@ func renderResolvedDetectingOCINetwork(
 	}
 	// The first pass already printed the per-category notes.
 	workflows, err = renderCertificationTo(io.Discard, cert, platformName, gpuArchOverride, gkeTCPXONetworks,
-		tcpxoPluginVersion, network)
+		tcpxoPluginVersion, network, imexMode)
 	if err != nil {
 		return nil, err
 	}
@@ -670,12 +676,17 @@ var ociDefaultNetworkNote = "Note: the OCI RDMA network is rendered as " + catal
 // renderResolvedDetectingOCINetwork, which passes
 // catalog.OCISecondaryNetworkUnresolved first and then the detected name or
 // catalog.DefaultOCISecondaryNetwork.
+//
+// imexMode is the IMEX mode the target nodes report (platform.DetectIMEXMode):
+// platform.IMEXModeHost renders the host IMEX channel through CDI instead of a
+// ComputeDomain on GB200/GB300, and "" keeps the ComputeDomain path. Only
+// --dry-run has nodes to detect it from; offline render passes "".
 func renderCertification(
 	cert *nvcrev1alpha1.Certification, platformName, gpuArchOverride string, gkeTCPXONetworks []string,
-	tcpxoPluginVersion, ociSecondaryNetwork string,
+	tcpxoPluginVersion, ociSecondaryNetwork, imexMode string,
 ) ([]nvcrev1alpha1.Workflow, error) {
 	return renderCertificationTo(os.Stderr, cert, platformName, gpuArchOverride, gkeTCPXONetworks,
-		tcpxoPluginVersion, ociSecondaryNetwork)
+		tcpxoPluginVersion, ociSecondaryNetwork, imexMode)
 }
 
 // renderCertificationTo is renderCertification with its per-category notes
@@ -683,7 +694,7 @@ func renderCertification(
 // the notes the first one already printed.
 func renderCertificationTo(
 	stderr io.Writer, cert *nvcrev1alpha1.Certification, platformName, gpuArchOverride string,
-	gkeTCPXONetworks []string, tcpxoPluginVersion, ociSecondaryNetwork string,
+	gkeTCPXONetworks []string, tcpxoPluginVersion, ociSecondaryNetwork, imexMode string,
 ) ([]nvcrev1alpha1.Workflow, error) {
 	if len(cert.Spec.Categories) == 0 {
 		return nil, fmt.Errorf("certification has no categories")
@@ -763,6 +774,7 @@ func renderCertificationTo(
 			MlnxPerNode:                mlnxPerNode,
 			NicResourceName:            nicResourceName,
 			RDMADeviceAccess:           opts.RDMADeviceAccess,
+			IMEXMode:                   imexMode,
 			NetworkAttachments:         opts.NetworkAttachments,
 			GKETCPXONetworks:           gkeTCPXONetworks,
 			TCPXOPluginVersion:         tcpxoPluginVersion,
